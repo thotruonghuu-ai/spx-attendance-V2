@@ -6,199 +6,119 @@
 <title>SPX Attendance Controller</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
   :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #22263a;
-    --border: rgba(255,255,255,0.08);
-    --border2: rgba(255,255,255,0.15);
-    --text: #e8eaf0;
-    --text2: #8b90a7;
-    --text3: #5a5f77;
-    --accent: #4a8fff;
-    --accent-glow: rgba(74,143,255,0.15);
-    --green: #2ecc71;
-    --green-bg: rgba(46,204,113,0.12);
-    --red: #e74c3c;
-    --red-bg: rgba(231,76,60,0.12);
-    --amber: #f39c12;
-    --amber-bg: rgba(243,156,18,0.12);
-    --radius: 10px;
-    --radius-lg: 14px;
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.15);
+    --text: #e8eaf0; --text2: #8b90a7; --text3: #5a5f77;
+    --accent: #4a8fff; --accent-glow: rgba(74,143,255,0.15);
+    --green: #2ecc71; --green-bg: rgba(46,204,113,0.12);
+    --red: #e74c3c; --red-bg: rgba(231,76,60,0.12);
+    --amber: #f39c12; --amber-bg: rgba(243,156,18,0.12);
+    --radius: 10px; --radius-lg: 14px;
   }
-
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    font-size: 13px;
-    min-height: 100vh;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 24px 16px;
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px;
+    min-height: 100vh; display: flex; align-items: flex-start;
+    justify-content: center; padding: 24px 16px;
   }
+  .app { width: 420px; display: flex; flex-direction: column; gap: 12px; }
 
-  .app {
-    width: 420px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  /* Header */
   .header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 18px;
-    background: var(--surface);
-    border: 0.5px solid var(--border2);
+    display: flex; align-items: center; gap: 10px; padding: 16px 18px;
+    background: var(--surface); border: 0.5px solid var(--border2);
     border-radius: var(--radius-lg);
   }
   .header-icon {
     width: 36px; height: 36px;
     background: linear-gradient(135deg, #4a8fff 0%, #6c5ce7 100%);
-    border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
+    border-radius: 9px; display: flex; align-items: center;
+    justify-content: center; font-size: 18px; flex-shrink: 0;
   }
   .header-title { font-size: 15px; font-weight: 600; color: var(--text); }
   .header-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
-  .header-status {
-    margin-left: auto;
-    display: flex; align-items: center; gap: 5px;
-    font-size: 11px; color: var(--text2);
-  }
-  .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--green);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+  .header-status { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-  /* Card */
-  .card {
-    background: var(--surface);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
   .card-header {
-    padding: 12px 16px;
-    border-bottom: 0.5px solid var(--border);
+    padding: 12px 16px; border-bottom: 0.5px solid var(--border);
     display: flex; align-items: center; gap: 8px;
-    font-size: 11px; font-weight: 600;
-    color: var(--text2);
+    font-size: 11px; font-weight: 600; color: var(--text2);
     text-transform: uppercase; letter-spacing: 0.5px;
   }
   .card-body { padding: 14px 16px; }
 
-  /* Config fields */
   .field { margin-bottom: 12px; }
   .field:last-child { margin-bottom: 0; }
-  .field label {
-    display: block;
-    font-size: 11px; color: var(--text2);
-    margin-bottom: 5px; font-weight: 500;
-  }
+  .field label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
   .field input, .field select {
-    width: 100%;
-    background: var(--surface2);
-    border: 0.5px solid var(--border2);
-    border-radius: var(--radius);
-    color: var(--text);
-    padding: 8px 11px;
-    font-size: 12px;
-    font-family: 'Consolas', monospace;
-    outline: none;
-    transition: border-color 0.15s;
+    width: 100%; background: var(--surface2); border: 0.5px solid var(--border2);
+    border-radius: var(--radius); color: var(--text); padding: 8px 11px;
+    font-size: 12px; font-family: 'Consolas', monospace; outline: none; transition: border-color .15s;
   }
-  .field input:focus, .field select:focus {
-    border-color: var(--accent);
-  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
   .field input::placeholder { color: var(--text3); }
   .field select option { background: #1a1d27; }
 
-  /* 2-col grid */
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-
-  /* Buttons */
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 9px 14px;
-    border-radius: var(--radius);
-    font-size: 12px; font-weight: 500;
-    cursor: pointer;
-    border: 0.5px solid var(--border2);
-    background: var(--surface2);
-    color: var(--text);
-    transition: all 0.15s;
-    white-space: nowrap;
+    padding: 9px 14px; border-radius: var(--radius); font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface2);
+    color: var(--text); transition: all .15s; white-space: nowrap;
   }
   .btn:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
   .btn:active { transform: scale(0.98); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
-  .btn-primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .btn-primary:hover { background: #3a7fff; border-color: #3a7fff; color: #fff; }
-
   .btn-danger { border-color: var(--red); color: var(--red); }
   .btn-danger:hover { background: var(--red-bg); }
-
   .btn-success { border-color: var(--green); color: var(--green); }
   .btn-success:hover { background: var(--green-bg); }
-
-  .btn-group {
-    display: flex; gap: 8px; flex-wrap: wrap;
-  }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
   .btn-group .btn { flex: 1; min-width: 0; }
 
-  /* Status card */
+  /* Date range */
+  .date-range-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 8px; margin-bottom: 12px;
+  }
+  .date-range-sep { font-size: 11px; color: var(--text3); padding-bottom: 9px; text-align: center; }
+
+  /* Mode tabs */
+  .mode-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .mode-tab {
+    flex: 1; padding: 7px 10px; border-radius: var(--radius); font-size: 11px; font-weight: 500;
+    cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface2);
+    color: var(--text2); text-align: center; transition: all .15s;
+  }
+  .mode-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .mode-tab:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+  .mode-panel { display: none; }
+  .mode-panel.active { display: block; }
+
   .status-row {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 0;
+    display: flex; align-items: center; gap: 10px; padding: 10px 0;
     border-bottom: 0.5px solid var(--border);
   }
   .status-row:last-child { border-bottom: none; padding-bottom: 0; }
   .status-row:first-child { padding-top: 0; }
   .status-label { font-size: 12px; color: var(--text2); flex: 1; }
   .status-val { font-size: 12px; color: var(--text); font-family: 'Consolas', monospace; }
-  .badge {
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 10px; font-weight: 600;
-    letter-spacing: 0.3px;
-  }
+  .badge { padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: .3px; }
   .badge-green { background: var(--green-bg); color: var(--green); }
   .badge-red { background: var(--red-bg); color: var(--red); }
   .badge-amber { background: var(--amber-bg); color: var(--amber); }
   .badge-blue { background: var(--accent-glow); color: var(--accent); }
 
-  /* Log area */
   .log-area {
-    background: #0d0f18;
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    font-family: 'Consolas', 'Courier New', monospace;
-    font-size: 11px;
-    line-height: 1.7;
-    max-height: 160px;
-    overflow-y: auto;
-    color: var(--text2);
+    background: #0d0f18; border: 0.5px solid var(--border); border-radius: var(--radius);
+    padding: 10px 12px; font-family: 'Consolas','Courier New',monospace; font-size: 11px;
+    line-height: 1.7; max-height: 160px; overflow-y: auto; color: var(--text2);
   }
   .log-area::-webkit-scrollbar { width: 4px; }
-  .log-area::-webkit-scrollbar-track { background: transparent; }
   .log-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
   .log-line { display: block; }
   .log-line.ok { color: var(--green); }
@@ -206,59 +126,30 @@
   .log-line.info { color: var(--accent); }
   .log-line.warn { color: var(--amber); }
 
-  /* Date picker row */
-  .date-row {
-    display: flex; gap: 8px; align-items: flex-end;
-  }
-  .date-row .field { flex: 1; margin-bottom: 0; }
-  .date-row .btn { flex-shrink: 0; height: 34px; }
-
-  /* Schedule display */
   .schedule-box {
-    background: var(--surface2);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 14px;
+    background: var(--surface2); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 10px 14px;
     display: flex; align-items: center; gap: 10px;
   }
-  .schedule-icon { font-size: 20px; }
   .schedule-text { font-size: 12px; color: var(--text2); }
   .schedule-text strong { color: var(--text); font-size: 13px; display: block; margin-bottom: 2px; }
 
-  /* Progress bar */
-  .progress-wrap {
-    height: 3px; background: var(--surface2); border-radius: 2px;
-    overflow: hidden; margin-top: 8px;
-  }
-  .progress-bar {
-    height: 100%; background: var(--accent);
-    border-radius: 2px; width: 0%;
-    transition: width 0.3s ease;
-  }
+  .progress-wrap { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-bar { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width .3s ease; }
 
-  /* Spinner */
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner {
-    width: 12px; height: 12px;
-    border: 1.5px solid rgba(255,255,255,0.2);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    display: none;
+    width: 12px; height: 12px; border: 1.5px solid rgba(255,255,255,.2);
+    border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; display: none;
   }
-
-  /* Divider */
-  .divider {
-    height: 0.5px; background: var(--border); margin: 4px 0;
-  }
-
-  /* Save indicator */
-  .save-hint {
-    font-size: 10px; color: var(--text3);
-    text-align: right; margin-top: 6px;
-    transition: color 0.3s;
-  }
+  .save-hint { font-size: 10px; color: var(--text3); text-align: right; margin-top: 6px; transition: color .3s; }
   .save-hint.saved { color: var(--green); }
+
+  .info-box {
+    background: var(--accent-glow); border: 0.5px solid rgba(74,143,255,.3);
+    border-radius: var(--radius); padding: 8px 12px;
+    font-size: 11px; color: #7fb3ff; margin-top: 10px; line-height: 1.5;
+  }
 </style>
 </head>
 <body>
@@ -269,7 +160,7 @@
     <div class="header-icon">📋</div>
     <div>
       <div class="header-title">SPX Attendance Sync</div>
-      <div class="header-sub">GitHub Actions Controller v2.0</div>
+      <div class="header-sub">GitHub Actions Controller v2.1</div>
     </div>
     <div class="header-status">
       <div class="dot" id="statusDot"></div>
@@ -279,13 +170,11 @@
 
   <!-- GitHub Config -->
   <div class="card">
-    <div class="card-header">
-      ⚙️ &nbsp;Cấu hình GitHub Actions
-    </div>
+    <div class="card-header">⚙️ &nbsp;Cấu hình GitHub Actions</div>
     <div class="card-body">
       <div class="field">
         <label>GitHub Owner (tên tài khoản)</label>
-        <input type="text" id="ghOwner" placeholder="vd: nguyen-van-a" />
+        <input type="text" id="ghOwner" placeholder="vd: thotruonghuu-ai" />
       </div>
       <div class="field">
         <label>Repository Name</label>
@@ -301,55 +190,82 @@
 
   <!-- Manual Run -->
   <div class="card">
-    <div class="card-header">
-      ▶️ &nbsp;Chạy thủ công
-    </div>
+    <div class="card-header">▶️ &nbsp;Chạy thủ công</div>
     <div class="card-body">
-      <div class="date-row" style="margin-bottom: 12px;">
-        <div class="field">
-          <label>Ngày cụ thể (để trống = N-1 hôm qua)</label>
-          <input type="date" id="dateOverride" />
+
+      <!-- Mode tabs -->
+      <div class="mode-tabs">
+        <div class="mode-tab active" onclick="switchMode('auto')">🔄 Tự động N-1</div>
+        <div class="mode-tab" onclick="switchMode('single')">📅 1 Ngày</div>
+        <div class="mode-tab" onclick="switchMode('range')">📆 Khoảng ngày</div>
+      </div>
+
+      <!-- Auto mode -->
+      <div class="mode-panel active" id="panel-auto">
+        <div class="info-box">
+          Tự động lấy dữ liệu ngày <strong>hôm qua (N-1)</strong>. Đây cũng là chế độ tự động chạy lúc <strong>8:00 sáng</strong> mỗi ngày.
         </div>
       </div>
-      <div class="btn-group">
-        <button class="btn btn-primary" onclick="triggerWorkflow()">
-          <span class="spinner" id="runSpinner"></span>
-          <span id="runBtnText">▶ Chạy ngay</span>
-        </button>
-        <button class="btn btn-success" onclick="checkStatus()">
-          🔍 Kiểm tra trạng thái
-        </button>
+
+      <!-- Single date mode -->
+      <div class="mode-panel" id="panel-single">
+        <div class="field">
+          <label>Chọn ngày cụ thể</label>
+          <input type="date" id="dateSingle" />
+        </div>
       </div>
-      <div class="progress-wrap" id="progressWrap" style="display:none">
-        <div class="progress-bar" id="progressBar"></div>
+
+      <!-- Date range mode -->
+      <div class="mode-panel" id="panel-range">
+        <div class="date-range-row">
+          <div class="field" style="margin-bottom:0">
+            <label>Từ ngày</label>
+            <input type="date" id="dateFrom" />
+          </div>
+          <div class="date-range-sep">→</div>
+          <div class="field" style="margin-bottom:0">
+            <label>Đến ngày</label>
+            <input type="date" id="dateTo" />
+          </div>
+        </div>
+        <div class="info-box" id="rangeInfo">Chọn khoảng ngày để tải nhiều ngày cùng lúc.</div>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="triggerWorkflow()">
+            <span class="spinner" id="runSpinner"></span>
+            <span id="runBtnText">▶ Chạy ngay</span>
+          </button>
+          <button class="btn btn-success" onclick="checkStatus()">🔍 Kiểm tra</button>
+        </div>
+        <div class="progress-wrap" id="progressWrap" style="display:none">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Schedule Info -->
   <div class="card">
-    <div class="card-header">
-      🕗 &nbsp;Lịch tự động
-    </div>
+    <div class="card-header">🕗 &nbsp;Lịch tự động</div>
     <div class="card-body">
       <div class="schedule-box">
-        <div class="schedule-icon">⏰</div>
+        <div style="font-size:20px">⏰</div>
         <div class="schedule-text">
           <strong>8:00 sáng mỗi ngày (Giờ VN)</strong>
-          GitHub Actions tự chạy, lấy data ngày N-1, ghi vào Google Sheet
+          Tự chạy N-1, ghi vào Google Sheet, không cần bật máy
         </div>
       </div>
-      <div style="margin-top: 10px; font-size: 11px; color: var(--text3);">
+      <div style="margin-top:10px; font-size:11px; color:var(--text3)">
         Cron UTC: <code style="color:var(--accent)">0 1 * * *</code> &nbsp;=&nbsp; 8:00 ICT (UTC+7)
       </div>
     </div>
   </div>
 
-  <!-- Status / Last Run -->
+  <!-- Status -->
   <div class="card">
-    <div class="card-header">
-      📊 &nbsp;Trạng thái lần chạy gần nhất
-    </div>
+    <div class="card-header">📊 &nbsp;Trạng thái lần chạy gần nhất</div>
     <div class="card-body">
       <div class="status-row">
         <div class="status-label">Trạng thái</div>
@@ -368,8 +284,8 @@
         <div class="status-val" id="lastDuration">—</div>
       </div>
       <div class="status-row">
-        <div class="status-label">Link Actions</div>
-        <div class="status-val"><a id="actionsLink" href="#" target="_blank" style="color:var(--accent); text-decoration:none; font-size:11px;">Mở GitHub Actions ↗</a></div>
+        <div class="status-label">GitHub Actions</div>
+        <div class="status-val"><a id="actionsLink" href="#" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px">Mở xem log ↗</a></div>
       </div>
     </div>
   </div>
@@ -377,37 +293,33 @@
   <!-- Log -->
   <div class="card">
     <div class="card-header">
-      📝 &nbsp;Nhật ký hoạt động
-      <button class="btn" style="margin-left:auto; padding: 3px 8px; font-size:10px;" onclick="clearLog()">Xóa log</button>
+      📝 &nbsp;Nhật ký
+      <button class="btn" style="margin-left:auto;padding:3px 8px;font-size:10px" onclick="clearLog()">Xóa</button>
     </div>
-    <div class="card-body" style="padding-top: 8px;">
+    <div class="card-body" style="padding-top:8px">
       <div class="log-area" id="logArea">
         <span class="log-line info">[Hệ thống] Bảng điều khiển khởi động...</span>
       </div>
     </div>
   </div>
 
-  <!-- Cookie Reminder -->
+  <!-- Cookie reminder -->
   <div class="card">
-    <div class="card-header">
-      🔑 &nbsp;Nhắc nhở bảo trì
-    </div>
+    <div class="card-header">🔑 &nbsp;Cookie SPX</div>
     <div class="card-body">
       <div class="status-row">
-        <div class="status-label">Cookie SPX cập nhật lần cuối</div>
+        <div class="status-label">Cập nhật lần cuối</div>
         <div class="status-val" id="cookieDate">—</div>
       </div>
       <div class="status-row">
         <div class="status-label">Hết hạn dự kiến</div>
         <div class="status-val" id="cookieExpiry">—</div>
       </div>
-      <div style="margin-top: 10px;">
-        <button class="btn btn-danger" onclick="markCookieUpdated()">
-          🔄 Đánh dấu đã cập nhật Cookie hôm nay
-        </button>
+      <div style="margin-top:10px">
+        <button class="btn btn-danger" onclick="markCookieUpdated()">🔄 Đánh dấu đã cập nhật Cookie hôm nay</button>
       </div>
-      <div style="font-size:10px; color:var(--text3); margin-top: 8px;">
-        Cookie SPX thường hết hạn sau ~30 ngày. Khi hết hạn, workflow sẽ báo lỗi.
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">
+        Cookie SPX hết hạn sau ~30 ngày. Khi hết hạn → workflow báo lỗi 405.
       </div>
     </div>
   </div>
@@ -415,7 +327,35 @@
 </div>
 
 <script>
-const STORAGE_KEY = 'spx_ctrl_cfg';
+const STORAGE_KEY = 'spx_ctrl_cfg_v2';
+let currentMode = 'auto';
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach((t,i) => {
+    t.classList.toggle('active', ['auto','single','range'][i] === mode);
+  });
+  document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + mode).classList.add('active');
+}
+
+// Update range info text
+function updateRangeInfo() {
+  const from = document.getElementById('dateFrom').value;
+  const to   = document.getElementById('dateTo').value;
+  const info = document.getElementById('rangeInfo');
+  if (from && to) {
+    const d1 = new Date(from), d2 = new Date(to);
+    if (d2 >= d1) {
+      const days = Math.round((d2 - d1) / 86400000) + 1;
+      info.textContent = `Sẽ tải ${days} ngày (${from} → ${to})`;
+    } else {
+      info.textContent = '⚠ Ngày kết thúc phải sau ngày bắt đầu';
+    }
+  }
+}
+document.getElementById('dateFrom').addEventListener('change', updateRangeInfo);
+document.getElementById('dateTo').addEventListener('change', updateRangeInfo);
 
 function loadConfig() {
   try {
@@ -423,11 +363,11 @@ function loadConfig() {
     if (!raw) return;
     const cfg = JSON.parse(raw);
     if (cfg.owner) document.getElementById('ghOwner').value = cfg.owner;
-    if (cfg.repo) document.getElementById('ghRepo').value = cfg.repo;
+    if (cfg.repo)  document.getElementById('ghRepo').value  = cfg.repo;
     if (cfg.token) document.getElementById('ghToken').value = cfg.token;
     if (cfg.cookieDate) {
       document.getElementById('cookieDate').textContent = cfg.cookieDate;
-      const exp = new Date(cfg.cookieDate);
+      const exp = new Date(cfg.cookieDateISO || cfg.cookieDate);
       exp.setDate(exp.getDate() + 30);
       document.getElementById('cookieExpiry').textContent = exp.toLocaleDateString('vi-VN');
       checkCookieExpiry(exp);
@@ -440,41 +380,40 @@ function loadConfig() {
 function saveConfig() {
   const cfg = {
     owner: document.getElementById('ghOwner').value.trim(),
-    repo: document.getElementById('ghRepo').value.trim(),
+    repo:  document.getElementById('ghRepo').value.trim(),
     token: document.getElementById('ghToken').value.trim(),
-    cookieDate: localStorage.getItem(STORAGE_KEY) ? JSON.parse(localStorage.getItem(STORAGE_KEY)).cookieDate : null
   };
+  try {
+    const old = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    cfg.cookieDate    = old.cookieDate;
+    cfg.cookieDateISO = old.cookieDateISO;
+  } catch(e) {}
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
   const hint = document.getElementById('saveHint');
-  hint.textContent = '✓ Đã lưu';
-  hint.classList.add('saved');
+  hint.textContent = '✓ Đã lưu'; hint.classList.add('saved');
   setTimeout(() => { hint.textContent = 'Tự động lưu khi nhập'; hint.classList.remove('saved'); }, 1500);
   updateActionsLink();
 }
 
+['ghOwner','ghRepo','ghToken'].forEach(id => document.getElementById(id).addEventListener('input', saveConfig));
+
 function updateActionsLink() {
   const owner = document.getElementById('ghOwner').value.trim();
-  const repo = document.getElementById('ghRepo').value.trim();
-  if (owner && repo) {
-    document.getElementById('actionsLink').href = `https://github.com/${owner}/${repo}/actions`;
-  }
+  const repo  = document.getElementById('ghRepo').value.trim();
+  if (owner && repo) document.getElementById('actionsLink').href = `https://github.com/${owner}/${repo}/actions`;
 }
-
-['ghOwner','ghRepo','ghToken'].forEach(id => {
-  document.getElementById(id).addEventListener('input', saveConfig);
-});
 
 function getConfig() {
   return {
     owner: document.getElementById('ghOwner').value.trim(),
-    repo: document.getElementById('ghRepo').value.trim(),
-    token: document.getElementById('ghToken').value.trim()
+    repo:  document.getElementById('ghRepo').value.trim(),
+    token: document.getElementById('ghToken').value.trim(),
   };
 }
 
 function addLog(msg, type = '') {
   const area = document.getElementById('logArea');
-  const now = new Date().toLocaleTimeString('vi-VN');
+  const now  = new Date().toLocaleTimeString('vi-VN');
   const line = document.createElement('span');
   line.className = `log-line ${type}`;
   line.textContent = `[${now}] ${msg}`;
@@ -489,34 +428,43 @@ function clearLog() {
 
 async function triggerWorkflow() {
   const { owner, repo, token } = getConfig();
-  if (!owner || !repo || !token) {
-    addLog('Vui lòng nhập đầy đủ Owner, Repo và Token!', 'err');
-    return;
+  if (!owner || !repo || !token) { addLog('Vui lòng nhập đầy đủ Owner, Repo và Token!', 'err'); return; }
+
+  // Build inputs based on mode
+  let inputs = {};
+  let label  = '';
+  if (currentMode === 'single') {
+    const d = document.getElementById('dateSingle').value;
+    if (!d) { addLog('Vui lòng chọn ngày!', 'err'); return; }
+    inputs = { date_override: d };
+    label  = `ngày ${d}`;
+  } else if (currentMode === 'range') {
+    const from = document.getElementById('dateFrom').value;
+    const to   = document.getElementById('dateTo').value;
+    if (!from || !to) { addLog('Vui lòng chọn cả Từ ngày và Đến ngày!', 'err'); return; }
+    if (new Date(to) < new Date(from)) { addLog('Ngày kết thúc phải sau ngày bắt đầu!', 'err'); return; }
+    inputs = { date_from: from, date_to: to };
+    const days = Math.round((new Date(to) - new Date(from)) / 86400000) + 1;
+    label  = `khoảng ${from} → ${to} (${days} ngày)`;
+  } else {
+    inputs = {};
+    label  = 'N-1 tự động';
   }
-  const dateOverride = document.getElementById('dateOverride').value;
+
   const btn = document.querySelector('.btn-primary');
   const spinner = document.getElementById('runSpinner');
   const btnText = document.getElementById('runBtnText');
-
-  btn.disabled = true;
-  spinner.style.display = 'inline-block';
-  btnText.textContent = 'Đang kích hoạt...';
+  btn.disabled = true; spinner.style.display = 'inline-block'; btnText.textContent = 'Đang kích hoạt...';
 
   const progressWrap = document.getElementById('progressWrap');
-  const progressBar = document.getElementById('progressBar');
+  const progressBar  = document.getElementById('progressBar');
   progressWrap.style.display = 'block';
   let prog = 0;
-  const progInterval = setInterval(() => {
-    prog = Math.min(prog + 2, 85);
-    progressBar.style.width = prog + '%';
-  }, 150);
+  const pi = setInterval(() => { prog = Math.min(prog + 2, 85); progressBar.style.width = prog + '%'; }, 150);
 
-  addLog(`Gửi lệnh chạy workflow${dateOverride ? ' cho ngày ' + dateOverride : ' (N-1 tự động)'}...`, 'info');
+  addLog(`Gửi lệnh: ${label}...`, 'info');
 
   try {
-    const payload = { ref: 'main' };
-    if (dateOverride) payload.inputs = { date_override: dateOverride };
-
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/main.yml/dispatches`, {
       method: 'POST',
       headers: {
@@ -525,148 +473,108 @@ async function triggerWorkflow() {
         'Content-Type': 'application/json',
         'X-GitHub-Api-Version': '2022-11-28'
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ ref: 'main', inputs })
     });
 
-    clearInterval(progInterval);
+    clearInterval(pi);
     progressBar.style.width = '100%';
     setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 800);
 
     if (res.status === 204) {
-      addLog('✓ Workflow đã được kích hoạt thành công!', 'ok');
+      addLog(`✓ Workflow kích hoạt thành công! (${label})`, 'ok');
       addLog('Kiểm tra GitHub Actions sau 30-60 giây...', 'info');
       setStatus('running');
-      setTimeout(() => checkStatus(), 8000);
+      setTimeout(() => checkStatus(), 10000);
     } else {
       const err = await res.json().catch(() => ({}));
       addLog(`Lỗi ${res.status}: ${err.message || 'Không xác định'}`, 'err');
-      if (res.status === 401) addLog('Token không hợp lệ hoặc hết hạn. Kiểm tra lại PAT.', 'warn');
-      if (res.status === 404) addLog('Không tìm thấy repo hoặc workflow. Kiểm tra tên Owner/Repo.', 'warn');
+      if (res.status === 401) addLog('Token không hợp lệ. Kiểm tra lại PAT.', 'warn');
+      if (res.status === 404) addLog('Không tìm thấy repo hoặc workflow.', 'warn');
+      if (res.status === 405) addLog('Cookie SPX hết hạn! Lấy cookie mới → cập nhật GitHub Secret SPX_COOKIE.', 'warn');
     }
   } catch(e) {
-    clearInterval(progInterval);
-    progressWrap.style.display = 'none';
+    clearInterval(pi); progressWrap.style.display = 'none';
     addLog(`Lỗi kết nối: ${e.message}`, 'err');
   }
 
-  btn.disabled = false;
-  spinner.style.display = 'none';
-  btnText.textContent = '▶ Chạy ngay';
+  btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '▶ Chạy ngay';
 }
 
 async function checkStatus() {
   const { owner, repo, token } = getConfig();
-  if (!owner || !repo || !token) {
-    addLog('Chưa nhập cấu hình GitHub!', 'err');
-    return;
-  }
-  addLog('Đang lấy trạng thái lần chạy gần nhất...', 'info');
+  if (!owner || !repo || !token) { addLog('Chưa nhập cấu hình!', 'err'); return; }
+  addLog('Đang lấy trạng thái...', 'info');
   try {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=1`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      }
+    const res  = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=1`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
     });
     const data = await res.json();
-    if (!data.workflow_runs || !data.workflow_runs.length) {
-      addLog('Chưa có lần chạy nào.', 'warn');
-      return;
-    }
+    if (!data.workflow_runs?.length) { addLog('Chưa có lần chạy nào.', 'warn'); return; }
     const run = data.workflow_runs[0];
-    const conclusion = run.conclusion;
-    const status = run.status;
     const startTime = new Date(run.created_at);
-    const endTime = run.updated_at ? new Date(run.updated_at) : null;
-
-    const statusLabel = document.getElementById('lastStatus');
-    if (status === 'completed') {
-      if (conclusion === 'success') {
-        statusLabel.textContent = '✓ Thành công';
-        statusLabel.className = 'badge badge-green';
-        addLog('✓ Lần chạy gần nhất: THÀNH CÔNG', 'ok');
-        setStatus('idle');
+    const endTime   = run.updated_at ? new Date(run.updated_at) : null;
+    const el = document.getElementById('lastStatus');
+    if (run.status === 'completed') {
+      if (run.conclusion === 'success') {
+        el.textContent = '✓ Thành công'; el.className = 'badge badge-green';
+        addLog('✓ Lần chạy gần nhất: THÀNH CÔNG', 'ok'); setStatus('idle');
       } else {
-        statusLabel.textContent = '✗ Thất bại';
-        statusLabel.className = 'badge badge-red';
-        addLog('✗ Lần chạy gần nhất: THẤT BẠI — Kiểm tra log trên GitHub Actions', 'err');
-        setStatus('error');
+        el.textContent = '✗ Thất bại'; el.className = 'badge badge-red';
+        addLog('✗ Lần chạy gần nhất: THẤT BẠI — Kiểm tra log GitHub Actions', 'err'); setStatus('error');
       }
-    } else if (status === 'in_progress' || status === 'queued') {
-      statusLabel.textContent = '⟳ Đang chạy';
-      statusLabel.className = 'badge badge-blue';
-      addLog('Workflow đang chạy, kiểm tra lại sau 30s...', 'info');
-      setStatus('running');
+    } else {
+      el.textContent = '⟳ Đang chạy'; el.className = 'badge badge-blue';
+      addLog('Workflow đang chạy...', 'info'); setStatus('running');
     }
-
     document.getElementById('lastRunTime').textContent = startTime.toLocaleString('vi-VN');
-    if (endTime && status === 'completed') {
-      const dur = Math.round((endTime - startTime) / 1000);
-      document.getElementById('lastDuration').textContent = `${dur} giây`;
+    if (endTime && run.status === 'completed') {
+      document.getElementById('lastDuration').textContent = Math.round((endTime - startTime)/1000) + ' giây';
     }
-
-    // Estimate sync date (N-1 from run date)
-    const syncDate = new Date(startTime);
-    syncDate.setDate(syncDate.getDate() - 1);
+    const syncDate = new Date(startTime); syncDate.setDate(syncDate.getDate() - 1);
     document.getElementById('lastSyncDate').textContent = syncDate.toLocaleDateString('vi-VN');
-
-  } catch(e) {
-    addLog(`Lỗi khi lấy trạng thái: ${e.message}`, 'err');
-  }
+  } catch(e) { addLog(`Lỗi: ${e.message}`, 'err'); }
 }
 
 function setStatus(state) {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  if (state === 'running') {
-    dot.style.background = '#f39c12';
-    text.textContent = 'Đang chạy';
-  } else if (state === 'error') {
-    dot.style.background = '#e74c3c';
-    text.textContent = 'Lỗi';
-  } else {
-    dot.style.background = '#2ecc71';
-    text.textContent = 'Sẵn sàng';
-  }
+  const dot = document.getElementById('statusDot'), text = document.getElementById('statusText');
+  if (state === 'running')      { dot.style.background = '#f39c12'; text.textContent = 'Đang chạy'; }
+  else if (state === 'error')   { dot.style.background = '#e74c3c'; text.textContent = 'Lỗi'; }
+  else                          { dot.style.background = '#2ecc71'; text.textContent = 'Sẵn sàng'; }
 }
 
 function markCookieUpdated() {
-  const today = new Date().toLocaleDateString('vi-VN');
+  const today    = new Date().toLocaleDateString('vi-VN');
   const todayISO = new Date().toISOString().slice(0,10);
   document.getElementById('cookieDate').textContent = today;
-  const exp = new Date();
-  exp.setDate(exp.getDate() + 30);
+  const exp = new Date(); exp.setDate(exp.getDate() + 30);
   document.getElementById('cookieExpiry').textContent = exp.toLocaleDateString('vi-VN');
-
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const cfg = raw ? JSON.parse(raw) : {};
-    cfg.cookieDate = todayISO;
+    const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    cfg.cookieDate = today; cfg.cookieDateISO = todayISO;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
   } catch(e) {}
-
-  addLog(`✓ Đã ghi nhận Cookie cập nhật hôm nay (${today}). Hết hạn dự kiến: ${exp.toLocaleDateString('vi-VN')}`, 'ok');
+  addLog(`✓ Cookie cập nhật ${today}. Hết hạn: ${exp.toLocaleDateString('vi-VN')}`, 'ok');
   checkCookieExpiry(exp);
 }
 
 function checkCookieExpiry(expDate) {
-  const daysLeft = Math.round((expDate - new Date()) / (1000*60*60*24));
-  if (daysLeft <= 5) {
-    addLog(`⚠ Cookie SPX còn ${daysLeft} ngày hết hạn! Hãy cập nhật lại.`, 'warn');
-  }
+  const days = Math.round((expDate - new Date()) / 86400000);
+  if (days <= 5) addLog(`⚠ Cookie còn ${days} ngày hết hạn! Hãy cập nhật.`, 'warn');
 }
 
-// Default date to yesterday
-function initDatePicker() {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  document.getElementById('dateOverride').value = yesterday.toISOString().slice(0, 10);
+function initDates() {
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yStr = y.toISOString().slice(0,10);
+  document.getElementById('dateSingle').value = yStr;
+  document.getElementById('dateTo').value     = yStr;
+  const m = new Date(); m.setDate(m.getDate() - 7);
+  document.getElementById('dateFrom').value   = m.toISOString().slice(0,10);
+  updateRangeInfo();
 }
 
 loadConfig();
-initDatePicker();
-addLog('Sẵn sàng. Nhập cấu hình GitHub và bấm "Chạy ngay" hoặc chờ lịch tự động 8:00 sáng.', 'ok');
+initDates();
+addLog('Sẵn sàng. Chọn chế độ và bấm "Chạy ngay".', 'ok');
 </script>
 </body>
 </html>
