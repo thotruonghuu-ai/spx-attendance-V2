@@ -1,6 +1,8 @@
 """
-SPX Attendance → Google Sheet  |  sync_attendance.py
+SPX Attendance → Google Sheet | sync_attendance.py
 Chạy trên GitHub Actions - không cần máy tính bật
+Logic ghi: append xuống dưới tiêu đề (hàng 1), không đè dữ liệu cũ.
+Ngày đã tồn tại thì bỏ qua (không ghi đè).
 """
 
 import os
@@ -11,277 +13,256 @@ import requests
 from datetime import datetime, timedelta, timezone
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
-# ══════════════════════════════════════════════════════════════
-#  CẤU HÌNH - đọc từ GitHub Secrets
-# ══════════════════════════════════════════════════════════════
-SPX_COOKIE        = os.environ["SPX_COOKIE"]         # Cookie SPX đầy đủ
-SPREADSHEET_ID    = os.environ["SPREADSHEET_ID"]      # ID Google Sheet
-SHEET_NAME        = os.environ.get("SHEET_NAME", "Att Reco")
-GCP_SA_KEY        = os.environ["GCP_SERVICE_ACCOUNT"] # JSON service account (string)
+# ============================================================
+# CẤU HÌNH
+# ============================================================
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+ICT = timezone(timedelta(hours=7))
 
-# Lấy ngày hôm qua (N-1) theo giờ VN
-VN_TZ   = timezone(timedelta(hours=7))
-TODAY   = datetime.now(VN_TZ)
-TARGET  = TODAY - timedelta(days=1)          # N-1
-DATE_STR = TARGET.strftime("%Y-%m-%d")       # "2026-05-15"
+SPX_API_URL = "https://spx.shopee.vn/api/v1/employee/attendance/statistic_data_list"
+PAGE_SIZE    = 100
 
-SPX_BASE = "https://spx.shopee.vn"
-API_PATH = "/api/wfm/admin/attendance/clock/statistic_data_list"
-
-# Header row khớp với sheet Att Reco của bạn
-HEADERS = [
-    "Date", "Ops ID", "Ops Name", "Staff Email",
-    "Profile Station", "Event Station", "Agency",
-    "Contract Type", "Department", "Slot (Shift)",
-    "Clock-in Status", "Clock-out Status",
-    "Clock-in Time", "Clock-out Time",
-    "Clock-in Date", "Clock-out Date",
-    "Planned Hours", "Actual Hours", "Fulfill Working Hours?",
-    "Break Time", "OT Applied", "OT Worked",
-    "Out of Event", "Sick/Leave", "Event ID",
-    "Clock-in Match Type", "Clock-out Match Type"
-]
-
-# ══════════════════════════════════════════════════════════════
-#  BƯỚC 1: Tính timestamp VN → Unix (giờ server SPX)
-# ══════════════════════════════════════════════════════════════
-def get_vn_unix_range(date_str):
-    """Chuyển '2026-05-15' → (start_unix, end_unix) theo giờ VN"""
-    y, m, d = map(int, date_str.split("-"))
-    # Đầu ngày VN (UTC+7) = UTC - 7 giờ
-    start_vn = datetime(y, m, d, 0,  0,  0, tzinfo=VN_TZ)
-    end_vn   = datetime(y, m, d, 23, 59, 59, tzinfo=VN_TZ)
-    return int(start_vn.timestamp()), int(end_vn.timestamp())
-
-
-# ══════════════════════════════════════════════════════════════
-#  BƯỚC 2: Gọi API SPX lấy data attendance
-# ══════════════════════════════════════════════════════════════
-def get_csrf_from_cookie(cookie_str):
-    """Lấy csrftoken từ chuỗi cookie"""
-    for part in cookie_str.split(";"):
-        part = part.strip()
-        if part.startswith("csrftoken="):
-            return part.split("=", 1)[1].strip()
-    return ""
-
-
-def fetch_attendance(date_str):
-    """Lấy toàn bộ dữ liệu attendance cho 1 ngày, tự phân trang"""
-    start_ts, end_ts = get_vn_unix_range(date_str)
-    csrf = get_csrf_from_cookie(SPX_COOKIE)
-
+# ============================================================
+# BƯỚC 1: LẤY DATA TỪ SPX API
+# ============================================================
+def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
+    """Lấy toàn bộ bản ghi chấm công cho target_date (YYYY-MM-DD)."""
     headers = {
-        "accept": "application/json, text/plain, */*",
-        "app": "FMS Portal",
-        "x-csrftoken": csrf,
-        "cookie": SPX_COOKIE,
-        "referer": f"{SPX_BASE}/#/attendanceNew/index",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "cookie": cookie,
+        "content-type": "application/json",
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "referer": "https://spx.shopee.vn/",
+        "origin": "https://spx.shopee.vn",
     }
 
-    all_rows = []
+    date_obj  = datetime.strptime(target_date, "%Y-%m-%d")
+    ts_start  = int(datetime(date_obj.year, date_obj.month, date_obj.day,
+                              0, 0, 0, tzinfo=ICT).timestamp())
+    ts_end    = int(datetime(date_obj.year, date_obj.month, date_obj.day,
+                              23, 59, 59, tzinfo=ICT).timestamp())
+
+    all_records: list[dict] = []
     page = 1
 
     while True:
-        url = (
-            f"{SPX_BASE}{API_PATH}"
-            f"?pageno={page}&count=100&staff_type=2"
-            f"&start_time={start_ts}&end_time={end_ts}"
-        )
+        payload = {
+            "start_time":  ts_start,
+            "end_time":    ts_end,
+            "page_number": page,
+            "page_size":   PAGE_SIZE,
+        }
         print(f"  → Gọi API trang {page} ...")
-        resp = requests.get(url, headers=headers, timeout=30)
+        resp = requests.post(SPX_API_URL, json=payload, headers=headers, timeout=30)
+        resp.raise_for_status()
+        body = resp.json()
 
-        if resp.status_code in (401, 403):
-            raise Exception(
-                f"❌ Session SPX hết hạn (HTTP {resp.status_code}). "
-                "Cần cập nhật SPX_COOKIE trong GitHub Secrets."
+        # Kiểm tra session hết hạn
+        if body.get("code") in (401, 403) or "login" in str(body).lower():
+            raise RuntimeError(
+                "Session SPX hết hạn! Lấy lại cookie và cập nhật GitHub Secret SPX_COOKIE."
             )
-        if resp.status_code != 200:
-            raise Exception(f"❌ API trả về HTTP {resp.status_code}: {resp.text[:200]}")
 
-        data = resp.json()
-        if data.get("retcode") != 0:
-            raise Exception(f"❌ SPX API lỗi: retcode={data.get('retcode')} msg={data.get('message')}")
+        data  = body.get("data", {}) or {}
+        items = data.get("list", []) or []
+        total = data.get("total", 0)
 
-        records = data.get("data", {}).get("list", [])
-        total   = data.get("data", {}).get("total", 0)
+        all_records.extend(items)
+        fetched = len(all_records)
+        print(f"     Trang {page}: {len(items)} bản ghi | Tổng đã lấy: {fetched}/{total}")
 
-        for r in records:
-            all_rows.append(build_row(r))
-
-        print(f"     Trang {page}: {len(records)} bản ghi | Tổng đã lấy: {len(all_rows)}/{total}")
-
-        # Hết trang → dừng
-        if len(all_rows) >= total or len(records) < 100:
+        if fetched >= total or not items:
             break
-
         page += 1
-        time.sleep(0.5)  # Tránh spam API
+        time.sleep(0.3)
 
-    return all_rows
+    print(f"  ✅ Lấy được {len(all_records)} bản ghi từ SPX")
+    return all_records
 
-
-def safe(v):
-    """Làm sạch giá trị trả về"""
-    if v is None:
-        return ""
-    s = str(v).strip()
-    return "" if s == "-" else s
-
-
-def fmt_timestamp(ts):
-    """Unix timestamp → chuỗi ngày giờ VN"""
-    if not ts or int(ts) <= 0:
-        return ""
-    dt = datetime.fromtimestamp(int(ts), tz=VN_TZ)
-    return dt.strftime("%H:%M %d/%m/%Y")
-
-
-def build_row(r):
-    """Chuyển 1 record API → 1 dòng list khớp với HEADERS"""
-    return [
-        safe(r.get("date")),
-        safe(r.get("biz_staff_id")),
-        safe(r.get("staff_name")),
-        safe(r.get("staff_email")),
-        safe(r.get("profile_station_name")),
-        safe(r.get("event_station_name")),
-        safe(r.get("agency")),
-        safe(r.get("contract_type")),
-        safe(r.get("department_name")),
-        safe(r.get("slot_code")),
-        safe(r.get("clock_in_status_name")),
-        safe(r.get("clock_out_status_name")),
-        fmt_timestamp(r.get("clock_in_time")),
-        fmt_timestamp(r.get("clock_out_time")),
-        safe(r.get("clock_in_date_str")),
-        safe(r.get("clock_out_date_str")),
-        safe(r.get("planned_hours")),
-        safe(r.get("actual_hours")),
-        safe(r.get("fulfill_working_hours")),
-        safe(r.get("break_time")),
-        safe(r.get("ot_applied")),
-        safe(r.get("ot_worked")),
-        safe(r.get("out_of_event_name")),
-        safe(r.get("sick_or_leave")),
-        safe(r.get("event_id")),
-        safe(r.get("clock_in_matching_type_str")),
-        safe(r.get("clock_out_matching_type_str")),
-    ]
-
-
-# ══════════════════════════════════════════════════════════════
-#  BƯỚC 3: Kết nối Google Sheets qua Service Account
-# ══════════════════════════════════════════════════════════════
-def get_sheets_service():
-    """Tạo Google Sheets client từ Service Account JSON"""
-    sa_info = json.loads(GCP_SA_KEY)
-    creds = service_account.Credentials.from_service_account_info(
-        sa_info,
-        scopes=["https://www.googleapis.com/auth/spreadsheets"]
+# ============================================================
+# BƯỚC 2: ĐỌC SHEET ĐỂ XÁC ĐỊNH HÀNG TIẾP THEO + NGÀY ĐÃ CÓ
+# ============================================================
+def get_sheet_state(service, spreadsheet_id: str, sheet_name: str):
+    """
+    Trả về:
+      - next_row (int): hàng tiếp theo để ghi (sau hàng cuối có dữ liệu)
+      - existing_dates (set): tập hợp các ngày (chuỗi YYYY-MM-DD) đã có trong sheet
+    Hàng 1 là tiêu đề → luôn bắt đầu ghi từ hàng 2 trở xuống.
+    """
+    range_check = f"{sheet_name}!A:A"
+    result = (
+        service.spreadsheets()
+        .values()
+        .get(spreadsheetId=spreadsheet_id, range=range_check)
+        .execute()
     )
-    return build("sheets", "v4", credentials=creds)
+    values = result.get("values", [])
 
+    existing_dates = set()
+    next_row = 2  # Mặc định bắt đầu từ hàng 2 nếu sheet chỉ có tiêu đề
 
-def read_existing_rows(service):
-    """Đọc toàn bộ dữ liệu hiện có trong sheet (bỏ qua header)"""
-    result = service.spreadsheets().values().get(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"{SHEET_NAME}!A2:AA"
-    ).execute()
-    return result.get("values", [])
+    for i, row in enumerate(values):
+        if i == 0:
+            # Hàng đầu là tiêu đề, bỏ qua
+            continue
+        cell = row[0].strip() if row else ""
+        if cell:
+            # Chuẩn hóa về YYYY-MM-DD
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
+                try:
+                    d = datetime.strptime(cell, fmt)
+                    existing_dates.add(d.strftime("%Y-%m-%d"))
+                    break
+                except ValueError:
+                    pass
+            next_row = i + 2  # i là 0-based, hàng Google Sheets là 1-based, +1 cho tiêu đề
 
+    print(f"  📋 Sheet hiện có {len(existing_dates)} ngày dữ liệu | Ghi từ hàng: {next_row}")
+    return next_row, existing_dates
 
-def dedup_rows(new_rows, existing_rows):
-    """Lọc bỏ các dòng đã có trong sheet"""
-    existing_keys = set("|".join(str(c) for c in row) for row in existing_rows)
-    unique = []
-    dupes  = 0
-    for row in new_rows:
-        key = "|".join(str(c) for c in row)
-        if key in existing_keys:
-            dupes += 1
-        else:
-            unique.append(row)
-            existing_keys.add(key)
-    return unique, dupes
+# ============================================================
+# BƯỚC 3: CHUYỂN ĐỔI BẢN GHI SPX → HÀNG SHEET
+# ============================================================
+def record_to_row(rec: dict, target_date: str) -> list:
+    """Chuyển 1 bản ghi SPX thành 1 hàng cho Google Sheet."""
 
+    def ts_to_hhmm(ts):
+        if not ts:
+            return ""
+        try:
+            return datetime.fromtimestamp(int(ts), tz=ICT).strftime("%H:%M")
+        except Exception:
+            return ""
 
-def ensure_header(service, existing_rows):
-    """Nếu sheet trống, ghi header row trước"""
-    if not existing_rows:
-        # Kiểm tra hàng đầu
-        result = service.spreadsheets().values().get(
-            spreadsheetId=SPREADSHEET_ID,
-            range=f"{SHEET_NAME}!A1:AA1"
-        ).execute()
-        header_in_sheet = result.get("values", [])
-        if not header_in_sheet:
-            print("  → Sheet chưa có header → tự động ghi header...")
-            service.spreadsheets().values().update(
-                spreadsheetId=SPREADSHEET_ID,
-                range=f"{SHEET_NAME}!A1",
-                valueInputOption="RAW",
-                body={"values": [HEADERS]}
-            ).execute()
+    def safe(val, default=""):
+        return val if val not in (None, "", 0) else default
 
+    check_in_ts  = rec.get("check_in_time")  or rec.get("clock_in_time")
+    check_out_ts = rec.get("check_out_time") or rec.get("clock_out_time")
 
-def append_to_sheet(service, rows):
-    """Append các dòng mới vào sheet"""
-    service.spreadsheets().values().append(
-        spreadsheetId=SPREADSHEET_ID,
-        range=f"{SHEET_NAME}!A:AA",
-        valueInputOption="RAW",
-        insertDataOption="INSERT_ROWS",
-        body={"values": rows}
-    ).execute()
+    # Trạng thái check-in / check-out
+    ci_status = safe(rec.get("clock_in_status"),  "")
+    co_status = safe(rec.get("clock_out_status"), "")
 
+    row = [
+        target_date,                                            # A: Ngày
+        safe(rec.get("ops_id") or rec.get("employee_id")),     # B: Mã NV
+        safe(rec.get("employee_name") or rec.get("name")),     # C: Tên NV
+        safe(rec.get("email")),                                 # D: Email
+        safe(rec.get("department")),                            # E: Phòng ban
+        safe(rec.get("position") or rec.get("job_title")),     # F: Chức vụ
+        safe(rec.get("hub_name") or rec.get("hub")),           # G: Hub
+        safe(rec.get("contract_type") or rec.get("employment_type")),  # H: Loại HĐ
+        safe(rec.get("soc") or rec.get("work_group")),         # I: SOC
+        safe(rec.get("shift_name") or rec.get("shift")),       # J: Ca làm việc
+        ci_status,                                              # K: Clock-in Status
+        co_status,                                              # L: Clock-out Status
+        ts_to_hhmm(check_in_ts),                               # M: Giờ check-in
+        ts_to_hhmm(check_out_ts),                              # N: Giờ check-out
+        safe(rec.get("work_hours") or rec.get("total_hours")), # O: Giờ làm
+        safe(rec.get("overtime_hours")),                       # P: Giờ OT
+        safe(rec.get("attendance_status") or rec.get("status")),  # Q: Trạng thái
+        safe(rec.get("note") or rec.get("remark")),            # R: Ghi chú
+    ]
+    return row
 
-# ══════════════════════════════════════════════════════════════
-#  MAIN
-# ══════════════════════════════════════════════════════════════
-def main():
-    print("=" * 60)
-    print(f"SPX Attendance Sync  |  Ngày quét: {DATE_STR} (N-1)")
-    print(f"Sheet: {SHEET_NAME}")
-    print("=" * 60)
-
-    # 1. Lấy data từ SPX API
-    print(f"\n[1/3] Gọi API SPX lấy data ngày {DATE_STR}...")
-    new_rows = fetch_attendance(DATE_STR)
-    print(f"  ✅ Lấy được {len(new_rows)} bản ghi từ SPX")
-
-    if not new_rows:
-        print("  ⚠️  Không có dữ liệu cho ngày này. Kết thúc.")
+# ============================================================
+# BƯỚC 4: GHI VÀO GOOGLE SHEET (APPEND XUỐNG DƯỚI)
+# ============================================================
+def append_rows_to_sheet(
+    service,
+    spreadsheet_id: str,
+    sheet_name: str,
+    rows: list[list],
+    start_row: int,
+):
+    """
+    Ghi rows vào sheet bắt đầu từ start_row.
+    Không đụng đến hàng 1 (tiêu đề).
+    """
+    if not rows:
+        print("  ⚠ Không có hàng nào để ghi.")
         return
 
-    # 2. Kết nối Google Sheets
-    print("\n[2/3] Kết nối Google Sheets...")
-    service = get_sheets_service()
-    existing = read_existing_rows(service)
-    print(f"  ✅ Sheet hiện có {len(existing)} dòng data")
+    range_start = f"{sheet_name}!A{start_row}"
+    body = {"values": rows}
 
-    # Đảm bảo có header
-    ensure_header(service, existing)
+    result = (
+        service.spreadsheets()
+        .values()
+        .update(
+            spreadsheetId=spreadsheet_id,
+            range=range_start,
+            valueInputOption="USER_ENTERED",
+            body=body,
+        )
+        .execute()
+    )
+    updated = result.get("updatedRows", len(rows))
+    print(f"  ✅ Đã ghi {updated} hàng vào sheet (từ hàng {start_row})")
 
-    # 3. Dedup và ghi
-    print("\n[3/3] Lọc trùng và ghi vào sheet...")
-    unique_rows, dupe_count = dedup_rows(new_rows, existing)
-    print(f"  → Trùng (bỏ qua): {dupe_count} dòng")
-    print(f"  → Mới (sẽ ghi):   {len(unique_rows)} dòng")
+# ============================================================
+# MAIN
+# ============================================================
+def main():
+    # --- Đọc biến môi trường ---
+    cookie          = os.environ["SPX_COOKIE"]
+    spreadsheet_id  = os.environ["SPREADSHEET_ID"]
+    sheet_name      = os.environ.get("SHEET_NAME", "Att Reco")
+    gcp_json        = os.environ["GCP_SERVICE_ACCOUNT"]
+    date_override   = os.environ.get("DATE_OVERRIDE", "").strip()
 
-    if unique_rows:
-        append_to_sheet(service, unique_rows)
-        print(f"  ✅ Đã ghi {len(unique_rows)} dòng vào sheet '{SHEET_NAME}'")
+    # --- Xác định ngày cần quét (N-1 mặc định) ---
+    if date_override:
+        target_date = date_override
     else:
-        print("  ℹ️  Không có dòng mới nào cần ghi.")
+        target_date = (datetime.now(ICT) - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    print("\n" + "=" * 60)
-    print(f"✅ HOÀN TẤT: {len(unique_rows)} dòng mới | {dupe_count} trùng bỏ qua")
+    print("=" * 60)
+    print(f"SPX Attendance Sync  |  Ngày quét: {target_date} (N-1)")
+    print(f"Sheet: {sheet_name}")
     print("=" * 60)
 
+    # --- Xác thực Google Sheets ---
+    print("\n[1/4] Xác thực Google Sheets API...")
+    creds_info = json.loads(gcp_json)
+    creds = service_account.Credentials.from_service_account_info(
+        creds_info, scopes=SCOPES
+    )
+    service = build("sheets", "v4", credentials=creds)
+    print("  ✅ Xác thực thành công")
+
+    # --- Kiểm tra trạng thái sheet ---
+    print("\n[2/4] Đọc trạng thái Google Sheet...")
+    next_row, existing_dates = get_sheet_state(service, spreadsheet_id, sheet_name)
+
+    if target_date in existing_dates:
+        print(f"  ⚠ Ngày {target_date} đã có trong sheet. Bỏ qua để tránh trùng lặp.")
+        print("  Nếu muốn ghi đè, hãy xóa dữ liệu ngày đó trong sheet trước.")
+        return
+
+    # --- Lấy data từ SPX ---
+    print(f"\n[3/4] Gọi API SPX lấy data ngày {target_date}...")
+    records = fetch_spx_data(cookie, target_date)
+
+    if not records:
+        print("  ⚠ Không có bản ghi nào cho ngày này.")
+        return
+
+    # --- Chuyển đổi và ghi vào sheet ---
+    print(f"\n[4/4] Ghi {len(records)} bản ghi vào Google Sheet...")
+    rows = [record_to_row(rec, target_date) for rec in records]
+    append_rows_to_sheet(service, spreadsheet_id, sheet_name, rows, next_row)
+
+    print("\n" + "=" * 60)
+    print(f"✅ HOÀN THÀNH: Đã ghi {len(rows)} bản ghi cho ngày {target_date}")
+    print(f"   Vị trí: hàng {next_row} → {next_row + len(rows) - 1}")
+    print("=" * 60)
 
 if __name__ == "__main__":
     main()
