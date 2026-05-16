@@ -23,7 +23,7 @@ ICT = timezone(timedelta(hours=7))
 
 # API đúng từ Network capture (GET, wfm/admin path)
 SPX_API_URL = "https://spx.shopee.vn/api/wfm/admin/attendance/clock/statistic_data_list"
-PAGE_SIZE    = 24  # Theo đúng count=24 quan sát được
+PAGE_SIZE    = 100  # Tăng để giảm số lần gọi API
 
 # ============================================================
 # BƯỚC 1: LẤY DATA TỪ SPX API
@@ -67,11 +67,9 @@ def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
         # Debug: in ra status và response nếu lỗi
         print(f"     HTTP {resp.status_code}")
         if resp.status_code != 200:
-            print(f"     Response: {resp.text[:500]}")
             resp.raise_for_status()
 
         body = resp.json()
-        print(f"     Response keys: {list(body.keys())}")
 
         # Kiểm tra session hết hạn
         if body.get("code") in (401, 403) or "login" in str(body).lower():
@@ -107,7 +105,6 @@ def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
     print(f"  ✅ Lấy được {len(all_records)} bản ghi từ SPX")
     # Debug: in field names của bản ghi đầu tiên để kiểm tra
     if all_records:
-        print(f"  🔍 Fields của bản ghi đầu: {list(all_records[0].keys())}")
     return all_records
 
 # ============================================================
@@ -155,45 +152,38 @@ def get_sheet_state(service, spreadsheet_id: str, sheet_name: str):
 # BƯỚC 3: CHUYỂN ĐỔI BẢN GHI SPX → HÀNG SHEET
 # ============================================================
 def record_to_row(rec: dict, target_date: str) -> list:
-    """Chuyển 1 bản ghi SPX thành 1 hàng cho Google Sheet."""
-
-    def ts_to_hhmm(ts):
-        if not ts:
-            return ""
-        try:
-            return datetime.fromtimestamp(int(ts), tz=ICT).strftime("%H:%M")
-        except Exception:
-            return ""
+    """Chuyển 1 bản ghi SPX thành 1 hàng cho Google Sheet.
+    Field names xác nhận từ API: biz_staff_id, staff_name, staff_email,
+    profile_station_name, event_station_name, agency, contract_type,
+    department_name, slot_code, clock_in_status_name, clock_out_status_name,
+    clock_in_time_str, clock_out_time_str, clock_in_date_str, clock_out_date_str,
+    planned_hours, actual_hours
+    """
 
     def safe(val, default=""):
-        return val if val not in (None, "", 0) else default
-
-    check_in_ts  = rec.get("check_in_time")  or rec.get("clock_in_time")
-    check_out_ts = rec.get("check_out_time") or rec.get("clock_out_time")
-
-    # Trạng thái check-in / check-out
-    ci_status = safe(rec.get("clock_in_status"),  "")
-    co_status = safe(rec.get("clock_out_status"), "")
+        if val in (None, "", 0):
+            return default
+        return str(val) if not isinstance(val, str) else val
 
     row = [
-        target_date,                                            # A: Ngày
-        safe(rec.get("ops_id") or rec.get("employee_id")),     # B: Mã NV
-        safe(rec.get("employee_name") or rec.get("name")),     # C: Tên NV
-        safe(rec.get("email")),                                 # D: Email
-        safe(rec.get("department")),                            # E: Phòng ban
-        safe(rec.get("position") or rec.get("job_title")),     # F: Chức vụ
-        safe(rec.get("hub_name") or rec.get("hub")),           # G: Hub
-        safe(rec.get("contract_type") or rec.get("employment_type")),  # H: Loại HĐ
-        safe(rec.get("soc") or rec.get("work_group")),         # I: SOC
-        safe(rec.get("shift_name") or rec.get("shift")),       # J: Ca làm việc
-        ci_status,                                              # K: Clock-in Status
-        co_status,                                              # L: Clock-out Status
-        ts_to_hhmm(check_in_ts),                               # M: Giờ check-in
-        ts_to_hhmm(check_out_ts),                              # N: Giờ check-out
-        safe(rec.get("work_hours") or rec.get("total_hours")), # O: Giờ làm
-        safe(rec.get("overtime_hours")),                       # P: Giờ OT
-        safe(rec.get("attendance_status") or rec.get("status")),  # Q: Trạng thái
-        safe(rec.get("note") or rec.get("remark")),            # R: Ghi chú
+        target_date,                                              # A: Date
+        safe(rec.get("biz_staff_id")),                           # B: Ops ID
+        safe(rec.get("staff_name")),                             # C: Ops Name
+        safe(rec.get("staff_email")),                            # D: Staff Email
+        safe(rec.get("profile_station_name")),                   # E: Profile Station
+        safe(rec.get("event_station_name")),                     # F: Event Station
+        safe(rec.get("agency")),                                 # G: Agency
+        safe(rec.get("contract_type")),                          # H: Contract Type
+        safe(rec.get("department_name")),                        # I: Department
+        safe(rec.get("slot_code")),                              # J: Slot (Shift)
+        safe(rec.get("clock_in_status_name")),                   # K: Clock-in Status
+        safe(rec.get("clock_out_status_name")),                  # L: Clock-out Status
+        safe(rec.get("clock_in_time_str")),                      # M: Clock-in Time
+        safe(rec.get("clock_out_time_str")),                     # N: Clock-out Time
+        safe(rec.get("clock_in_date_str")),                      # O: Clock-in Date
+        safe(rec.get("clock_out_date_str")),                     # P: Clock-out Date
+        safe(rec.get("planned_hours")),                          # Q: Planned Hours
+        safe(rec.get("actual_hours")),                           # R: Actual Hours
     ]
     return row
 
