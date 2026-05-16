@@ -6,7 +6,15 @@ on:
   workflow_dispatch:
     inputs:
       date_override:
-        description: 'Chạy cho ngày cụ thể (YYYY-MM-DD). Để trống = N-1 tự động.'
+        description: '1 ngày cụ thể (YYYY-MM-DD). Để trống nếu dùng khoảng ngày.'
+        required: false
+        default: ''
+      date_from:
+        description: 'Từ ngày (YYYY-MM-DD) - dùng kèm date_to.'
+        required: false
+        default: ''
+      date_to:
+        description: 'Đến ngày (YYYY-MM-DD) - dùng kèm date_from.'
         required: false
         default: ''
 
@@ -14,7 +22,7 @@ jobs:
   sync:
     name: Sync Attendance → Google Sheet
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
 
     steps:
       - name: Checkout code
@@ -35,6 +43,8 @@ jobs:
           SHEET_NAME:          ${{ secrets.SHEET_NAME }}
           GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           DATE_OVERRIDE:       ${{ github.event.inputs.date_override }}
+          DATE_FROM:           ${{ github.event.inputs.date_from }}
+          DATE_TO:             ${{ github.event.inputs.date_to }}
         run: python scripts/sync_attendance.py
 
       - name: Done
