@@ -1,0 +1,46 @@
+name: SPX Attendance Daily Sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      date_override:
+        description: 'Chạy cho ngày cụ thể (YYYY-MM-DD). Để trống = N-1 tự động.'
+        required: false
+        default: ''
+
+jobs:
+  sync:
+    name: Sync Attendance → Google Sheet
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run sync
+        env:
+          SPX_COOKIE:          ${{ secrets.SPX_COOKIE }}
+          SPREADSHEET_ID:      ${{ secrets.SPREADSHEET_ID }}
+          SHEET_NAME:          ${{ secrets.SHEET_NAME }}
+          GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          DATE_OVERRIDE:       ${{ github.event.inputs.date_override }}
+        run: python scripts/sync_attendance.py
+
+      - name: Done
+        if: success()
+        run: echo "✅ Sync thành công lúc $(date +'%Y-%m-%d %H:%M:%S UTC')"
+
+      - name: Failed
+        if: failure()
+        run: echo "❌ Sync thất bại! Kiểm tra log ở trên."
