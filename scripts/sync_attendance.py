@@ -3,12 +3,12 @@ SPX Attendance → Google Sheet | sync_attendance.py
 Chạy trên GitHub Actions - không cần máy tính bật
 Logic ghi: append xuống dưới tiêu đề (hàng 1), không đè dữ liệu cũ.
 Ngày đã tồn tại thì bỏ qua (không ghi đè).
+Hỗ trợ: 1 ngày cụ thể, khoảng ngày (from→to), hoặc N-1 tự động.
 """
 
 import os
 import json
 import time
-import math
 import requests
 from datetime import datetime, timedelta, timezone
 from google.oauth2 import service_account
@@ -209,27 +209,52 @@ def append_rows_to_sheet(
 # ============================================================
 # MAIN
 # ============================================================
+def build_date_list(date_from: str, date_to: str) -> list[str]:
+    """Tạo danh sách ngày từ date_from đến date_to (bao gồm cả 2 đầu)."""
+    d_from = datetime.strptime(date_from, "%Y-%m-%d")
+    d_to   = datetime.strptime(date_to,   "%Y-%m-%d")
+    dates  = []
+    cur = d_from
+    while cur <= d_to:
+        dates.append(cur.strftime("%Y-%m-%d"))
+        cur += timedelta(days=1)
+    return dates
+
+
 def main():
     # --- Đọc biến môi trường ---
-    cookie          = os.environ["SPX_COOKIE"]
-    spreadsheet_id  = os.environ["SPREADSHEET_ID"]
-    sheet_name      = os.environ.get("SHEET_NAME", "Att Reco")
-    gcp_json        = os.environ["GCP_SERVICE_ACCOUNT"]
-    date_override   = os.environ.get("DATE_OVERRIDE", "").strip()
+    cookie         = os.environ["SPX_COOKIE"]
+    spreadsheet_id = os.environ["SPREADSHEET_ID"]
+    sheet_name     = os.environ.get("SHEET_NAME", "Att Reco")
+    gcp_json       = os.environ["GCP_SERVICE_ACCOUNT"]
+    date_from      = os.environ.get("DATE_FROM",  "").strip()
+    date_to        = os.environ.get("DATE_TO",    "").strip()
+    date_override  = os.environ.get("DATE_OVERRIDE", "").strip()
 
-    # --- Xác định ngày cần quét (N-1 mặc định) ---
-    if date_override:
-        target_date = date_override
+    # --- Xác định danh sách ngày cần quét ---
+    today_ict = datetime.now(ICT)
+    yesterday = (today_ict - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    if date_from and date_to:
+        # Chế độ khoảng ngày
+        target_dates = build_date_list(date_from, date_to)
+        mode_label = f"Khoảng ngày: {date_from} → {date_to} ({len(target_dates)} ngày)"
+    elif date_override:
+        # Chế độ 1 ngày cụ thể
+        target_dates = [date_override]
+        mode_label = f"Ngày cụ thể: {date_override}"
     else:
-        target_date = (datetime.now(ICT) - timedelta(days=1)).strftime("%Y-%m-%d")
+        # Chế độ tự động N-1
+        target_dates = [yesterday]
+        mode_label = f"Tự động N-1: {yesterday}"
 
     print("=" * 60)
-    print(f"SPX Attendance Sync  |  Ngày quét: {target_date} (N-1)")
+    print(f"SPX Attendance Sync  |  {mode_label}")
     print(f"Sheet: {sheet_name}")
     print("=" * 60)
 
     # --- Xác thực Google Sheets ---
-    print("\n[1/4] Xác thực Google Sheets API...")
+    print("\n[1/3] Xác thực Google Sheets API...")
     creds_info = json.loads(gcp_json)
     creds = service_account.Credentials.from_service_account_info(
         creds_info, scopes=SCOPES
@@ -237,32 +262,52 @@ def main():
     service = build("sheets", "v4", credentials=creds)
     print("  ✅ Xác thực thành công")
 
-    # --- Kiểm tra trạng thái sheet ---
-    print("\n[2/4] Đọc trạng thái Google Sheet...")
+    # --- Đọc trạng thái sheet 1 lần ---
+    print("\n[2/3] Đọc trạng thái Google Sheet...")
     next_row, existing_dates = get_sheet_state(service, spreadsheet_id, sheet_name)
 
-    if target_date in existing_dates:
-        print(f"  ⚠ Ngày {target_date} đã có trong sheet. Bỏ qua để tránh trùng lặp.")
-        print("  Nếu muốn ghi đè, hãy xóa dữ liệu ngày đó trong sheet trước.")
-        return
+    # --- Lặp qua từng ngày ---
+    print(f"\n[3/3] Bắt đầu đồng bộ {len(target_dates)} ngày...")
+    total_written = 0
+    skipped = []
 
-    # --- Lấy data từ SPX ---
-    print(f"\n[3/4] Gọi API SPX lấy data ngày {target_date}...")
-    records = fetch_spx_data(cookie, target_date)
+    for i, target_date in enumerate(target_dates, 1):
+        print(f"\n--- Ngày {i}/{len(target_dates)}: {target_date} ---")
 
-    if not records:
-        print("  ⚠ Không có bản ghi nào cho ngày này.")
-        return
+        if target_date in existing_dates:
+            print(f"  ⚠ Đã có trong sheet, bỏ qua.")
+            skipped.append(target_date)
+            continue
 
-    # --- Chuyển đổi và ghi vào sheet ---
-    print(f"\n[4/4] Ghi {len(records)} bản ghi vào Google Sheet...")
-    rows = [record_to_row(rec, target_date) for rec in records]
-    append_rows_to_sheet(service, spreadsheet_id, sheet_name, rows, next_row)
+        try:
+            records = fetch_spx_data(cookie, target_date)
+        except RuntimeError as e:
+            print(f"  ❌ Lỗi session: {e}")
+            raise
+        except Exception as e:
+            print(f"  ❌ Lỗi khi lấy data ngày {target_date}: {e}")
+            print(f"  → Bỏ qua ngày này, tiếp tục...")
+            continue
+
+        if not records:
+            print(f"  ⚠ Không có bản ghi nào.")
+            continue
+
+        rows = [record_to_row(rec, target_date) for rec in records]
+        append_rows_to_sheet(service, spreadsheet_id, sheet_name, rows, next_row)
+        existing_dates.add(target_date)
+        next_row += len(rows)
+        total_written += len(rows)
+
+        if i < len(target_dates):
+            time.sleep(1)  # Tránh rate limit khi chạy nhiều ngày
 
     print("\n" + "=" * 60)
-    print(f"✅ HOÀN THÀNH: Đã ghi {len(rows)} bản ghi cho ngày {target_date}")
-    print(f"   Vị trí: hàng {next_row} → {next_row + len(rows) - 1}")
+    print(f"✅ HOÀN THÀNH: Đã ghi {total_written} bản ghi")
+    if skipped:
+        print(f"   Bỏ qua {len(skipped)} ngày đã có: {', '.join(skipped)}")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()
