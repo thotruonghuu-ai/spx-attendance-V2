@@ -103,8 +103,6 @@ def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
         time.sleep(0.3)
 
     print(f"  ✅ Lấy được {len(all_records)} bản ghi từ SPX")
-    # Debug: in field names của bản ghi đầu tiên để kiểm tra
-    if all_records:
     return all_records
 
 # ============================================================
@@ -153,17 +151,28 @@ def get_sheet_state(service, spreadsheet_id: str, sheet_name: str):
 # ============================================================
 def record_to_row(rec: dict, target_date: str) -> list:
     """Chuyển 1 bản ghi SPX thành 1 hàng cho Google Sheet.
-    Field names xác nhận từ API: biz_staff_id, staff_name, staff_email,
-    profile_station_name, event_station_name, agency, contract_type,
-    department_name, slot_code, clock_in_status_name, clock_out_status_name,
-    clock_in_time_str, clock_out_time_str, clock_in_date_str, clock_out_date_str,
-    planned_hours, actual_hours
+    Cột khớp với tiêu đề sheet thực tế (ảnh):
+    A=Date, B=Ops ID, C=Ops Name, D=Staff Email, E=Profile Station,
+    F=Event Station, G=Agency, H=Contract Type, I=Department, J=Slot(Shift),
+    K=Clock-in Status, L=Clock-out Status, M=Clock-in Time, N=Clock-out Time,
+    O=Clock-in Date, P=Clock-out Date, Q=Planned Hours, R=Actual Hours,
+    S=Fulfill Working Hours, T=Break Time, U=OT Applied, V=OT Worked,
+    W=Out of Event, X=Sick/Leave, Y=Event ID, Z=Clock-in Match Type,
+    AA=Clock-out Match Type
     """
 
     def safe(val, default=""):
-        if val in (None, "", 0):
+        if val in (None, ""):
             return default
         return str(val) if not isinstance(val, str) else val
+
+    def safe_num(val, default=""):
+        if val in (None, ""):
+            return default
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return default
 
     row = [
         target_date,                                              # A: Date
@@ -182,8 +191,17 @@ def record_to_row(rec: dict, target_date: str) -> list:
         safe(rec.get("clock_out_time_str")),                     # N: Clock-out Time
         safe(rec.get("clock_in_date_str")),                      # O: Clock-in Date
         safe(rec.get("clock_out_date_str")),                     # P: Clock-out Date
-        safe(rec.get("planned_hours")),                          # Q: Planned Hours
-        safe(rec.get("actual_hours")),                           # R: Actual Hours
+        safe_num(rec.get("planned_hours")),                      # Q: Planned Hours
+        safe_num(rec.get("actual_hours")),                       # R: Actual Hours
+        safe(rec.get("fulfill_working_hours")),                  # S: Fulfill Working Hours
+        safe_num(rec.get("break_time")),                         # T: Break Time
+        safe(rec.get("ot_applied")),                             # U: OT Applied
+        safe_num(rec.get("ot_worked")),                          # V: OT Worked
+        safe(rec.get("out_of_event_name") or rec.get("out_of_event")),  # W: Out of Event
+        safe(rec.get("sick_or_leave")),                          # X: Sick/Leave
+        safe(rec.get("event_id")),                               # Y: Event ID
+        safe(rec.get("clock_in_matching_type_str")),             # Z: Clock-in Match Type
+        safe(rec.get("clock_out_matching_type_str")),            # AA: Clock-out Match Type
     ]
     return row
 
