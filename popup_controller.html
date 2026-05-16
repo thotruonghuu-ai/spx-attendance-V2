@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPX Attendance Controller</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #e8eaf0;
+    --text2: #8b90a7;
+    --text3: #5a5f77;
+    --accent: #4a8fff;
+    --accent-glow: rgba(74,143,255,0.15);
+    --green: #2ecc71;
+    --green-bg: rgba(46,204,113,0.12);
+    --red: #e74c3c;
+    --red-bg: rgba(231,76,60,0.12);
+    --amber: #f39c12;
+    --amber-bg: rgba(243,156,18,0.12);
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  .app {
+    width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-lg);
+  }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, #4a8fff 0%, #6c5ce7 100%);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .header-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .header-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+  .header-status {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text2);
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 12px 16px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .card-body { padding: 14px 16px; }
+
+  /* Config fields */
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 11px; color: var(--text2);
+    margin-bottom: 5px; font-weight: 500;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 8px 11px;
+    font-size: 12px;
+    font-family: 'Consolas', monospace;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+  }
+  .field input::placeholder { color: var(--text3); }
+  .field select option { background: #1a1d27; }
+
+  /* 2-col grid */
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 9px 14px;
+    border-radius: var(--radius);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    border: 0.5px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #3a7fff; border-color: #3a7fff; color: #fff; }
+
+  .btn-danger { border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: var(--red-bg); }
+
+  .btn-success { border-color: var(--green); color: var(--green); }
+  .btn-success:hover { background: var(--green-bg); }
+
+  .btn-group {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .btn-group .btn { flex: 1; min-width: 0; }
+
+  /* Status card */
+  .status-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .status-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .status-row:first-child { padding-top: 0; }
+  .status-label { font-size: 12px; color: var(--text2); flex: 1; }
+  .status-val { font-size: 12px; color: var(--text); font-family: 'Consolas', monospace; }
+  .badge {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-amber { background: var(--amber-bg); color: var(--amber); }
+  .badge-blue { background: var(--accent-glow); color: var(--accent); }
+
+  /* Log area */
+  .log-area {
+    background: #0d0f18;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    max-height: 160px;
+    overflow-y: auto;
+    color: var(--text2);
+  }
+  .log-area::-webkit-scrollbar { width: 4px; }
+  .log-area::-webkit-scrollbar-track { background: transparent; }
+  .log-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .log-line { display: block; }
+  .log-line.ok { color: var(--green); }
+  .log-line.err { color: var(--red); }
+  .log-line.info { color: var(--accent); }
+  .log-line.warn { color: var(--amber); }
+
+  /* Date picker row */
+  .date-row {
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  .date-row .field { flex: 1; margin-bottom: 0; }
+  .date-row .btn { flex-shrink: 0; height: 34px; }
+
+  /* Schedule display */
+  .schedule-box {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .schedule-icon { font-size: 20px; }
+  .schedule-text { font-size: 12px; color: var(--text2); }
+  .schedule-text strong { color: var(--text); font-size: 13px; display: block; margin-bottom: 2px; }
+
+  /* Progress bar */
+  .progress-wrap {
+    height: 3px; background: var(--surface2); border-radius: 2px;
+    overflow: hidden; margin-top: 8px;
+  }
+  .progress-bar {
+    height: 100%; background: var(--accent);
+    border-radius: 2px; width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* Spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 12px; height: 12px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+
+  /* Divider */
+  .divider {
+    height: 0.5px; background: var(--border); margin: 4px 0;
+  }
+
+  /* Save indicator */
+  .save-hint {
+    font-size: 10px; color: var(--text3);
+    text-align: right; margin-top: 6px;
+    transition: color 0.3s;
+  }
+  .save-hint.saved { color: var(--green); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">📋</div>
+    <div>
+      <div class="header-title">SPX Attendance Sync</div>
+      <div class="header-sub">GitHub Actions Controller v2.0</div>
+    </div>
+    <div class="header-status">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Sẵn sàng</span>
+    </div>
+  </div>
+
+  <!-- GitHub Config -->
+  <div class="card">
+    <div class="card-header">
+      ⚙️ &nbsp;Cấu hình GitHub Actions
+    </div>
+    <div class="card-body">
+      <div class="field">
+        <label>GitHub Owner (tên tài khoản)</label>
+        <input type="text" id="ghOwner" placeholder="vd: nguyen-van-a" />
+      </div>
+      <div class="field">
+        <label>Repository Name</label>
+        <input type="text" id="ghRepo" placeholder="vd: spx-attendance-V2" />
+      </div>
+      <div class="field">
+        <label>GitHub Personal Access Token (PAT)</label>
+        <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+      </div>
+      <div class="save-hint" id="saveHint">Tự động lưu khi nhập</div>
+    </div>
+  </div>
+
+  <!-- Manual Run -->
+  <div class="card">
+    <div class="card-header">
+      ▶️ &nbsp;Chạy thủ công
+    </div>
+    <div class="card-body">
+      <div class="date-row" style="margin-bottom: 12px;">
+        <div class="field">
+          <label>Ngày cụ thể (để trống = N-1 hôm qua)</label>
+          <input type="date" id="dateOverride" />
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="triggerWorkflow()">
+          <span class="spinner" id="runSpinner"></span>
+          <span id="runBtnText">▶ Chạy ngay</span>
+        </button>
+        <button class="btn btn-success" onclick="checkStatus()">
+          🔍 Kiểm tra trạng thái
+        </button>
+      </div>
+      <div class="progress-wrap" id="progressWrap" style="display:none">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Schedule Info -->
+  <div class="card">
+    <div class="card-header">
+      🕗 &nbsp;Lịch tự động
+    </div>
+    <div class="card-body">
+      <div class="schedule-box">
+        <div class="schedule-icon">⏰</div>
+        <div class="schedule-text">
+          <strong>8:00 sáng mỗi ngày (Giờ VN)</strong>
+          GitHub Actions tự chạy, lấy data ngày N-1, ghi vào Google Sheet
+        </div>
+      </div>
+      <div style="margin-top: 10px; font-size: 11px; color: var(--text3);">
+        Cron UTC: <code style="color:var(--accent)">0 1 * * *</code> &nbsp;=&nbsp; 8:00 ICT (UTC+7)
+      </div>
+    </div>
+  </div>
+
+  <!-- Status / Last Run -->
+  <div class="card">
+    <div class="card-header">
+      📊 &nbsp;Trạng thái lần chạy gần nhất
+    </div>
+    <div class="card-body">
+      <div class="status-row">
+        <div class="status-label">Trạng thái</div>
+        <div class="status-val"><span class="badge badge-blue" id="lastStatus">Chưa kiểm tra</span></div>
+      </div>
+      <div class="status-row">
+        <div class="status-label">Thời gian chạy</div>
+        <div class="status-val" id="lastRunTime">—</div>
+      </div>
+      <div class="status-row">
+        <div class="status-label">Ngày quét data</div>
+        <div class="status-val" id="lastSyncDate">—</div>
+      </div>
+      <div class="status-row">
+        <div class="status-label">Thời lượng</div>
+        <div class="status-val" id="lastDuration">—</div>
+      </div>
+      <div class="status-row">
+        <div class="status-label">Link Actions</div>
+        <div class="status-val"><a id="actionsLink" href="#" target="_blank" style="color:var(--accent); text-decoration:none; font-size:11px;">Mở GitHub Actions ↗</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card">
+    <div class="card-header">
+      📝 &nbsp;Nhật ký hoạt động
+      <button class="btn" style="margin-left:auto; padding: 3px 8px; font-size:10px;" onclick="clearLog()">Xóa log</button>
+    </div>
+    <div class="card-body" style="padding-top: 8px;">
+      <div class="log-area" id="logArea">
+        <span class="log-line info">[Hệ thống] Bảng điều khiển khởi động...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cookie Reminder -->
+  <div class="card">
+    <div class="card-header">
+      🔑 &nbsp;Nhắc nhở bảo trì
+    </div>
+    <div class="card-body">
+      <div class="status-row">
+        <div class="status-label">Cookie SPX cập nhật lần cuối</div>
+        <div class="status-val" id="cookieDate">—</div>
+      </div>
+      <div class="status-row">
+        <div class="status-label">Hết hạn dự kiến</div>
+        <div class="status-val" id="cookieExpiry">—</div>
+      </div>
+      <div style="margin-top: 10px;">
+        <button class="btn btn-danger" onclick="markCookieUpdated()">
+          🔄 Đánh dấu đã cập nhật Cookie hôm nay
+        </button>
+      </div>
+      <div style="font-size:10px; color:var(--text3); margin-top: 8px;">
+        Cookie SPX thường hết hạn sau ~30 ngày. Khi hết hạn, workflow sẽ báo lỗi.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'spx_ctrl_cfg';
+
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const cfg = JSON.parse(raw);
+    if (cfg.owner) document.getElementById('ghOwner').value = cfg.owner;
+    if (cfg.repo) document.getElementById('ghRepo').value = cfg.repo;
+    if (cfg.token) document.getElementById('ghToken').value = cfg.token;
+    if (cfg.cookieDate) {
+      document.getElementById('cookieDate').textContent = cfg.cookieDate;
+      const exp = new Date(cfg.cookieDate);
+      exp.setDate(exp.getDate() + 30);
+      document.getElementById('cookieExpiry').textContent = exp.toLocaleDateString('vi-VN');
+      checkCookieExpiry(exp);
+    }
+    updateActionsLink();
+    addLog('Đã tải cấu hình từ bộ nhớ.', 'info');
+  } catch(e) {}
+}
+
+function saveConfig() {
+  const cfg = {
+    owner: document.getElementById('ghOwner').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    token: document.getElementById('ghToken').value.trim(),
+    cookieDate: localStorage.getItem(STORAGE_KEY) ? JSON.parse(localStorage.getItem(STORAGE_KEY)).cookieDate : null
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  const hint = document.getElementById('saveHint');
+  hint.textContent = '✓ Đã lưu';
+  hint.classList.add('saved');
+  setTimeout(() => { hint.textContent = 'Tự động lưu khi nhập'; hint.classList.remove('saved'); }, 1500);
+  updateActionsLink();
+}
+
+function updateActionsLink() {
+  const owner = document.getElementById('ghOwner').value.trim();
+  const repo = document.getElementById('ghRepo').value.trim();
+  if (owner && repo) {
+    document.getElementById('actionsLink').href = `https://github.com/${owner}/${repo}/actions`;
+  }
+}
+
+['ghOwner','ghRepo','ghToken'].forEach(id => {
+  document.getElementById(id).addEventListener('input', saveConfig);
+});
+
+function getConfig() {
+  return {
+    owner: document.getElementById('ghOwner').value.trim(),
+    repo: document.getElementById('ghRepo').value.trim(),
+    token: document.getElementById('ghToken').value.trim()
+  };
+}
+
+function addLog(msg, type = '') {
+  const area = document.getElementById('logArea');
+  const now = new Date().toLocaleTimeString('vi-VN');
+  const line = document.createElement('span');
+  line.className = `log-line ${type}`;
+  line.textContent = `[${now}] ${msg}`;
+  area.appendChild(document.createElement('br'));
+  area.appendChild(line);
+  area.scrollTop = area.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logArea').innerHTML = '<span class="log-line info">[Hệ thống] Log đã được xóa.</span>';
+}
+
+async function triggerWorkflow() {
+  const { owner, repo, token } = getConfig();
+  if (!owner || !repo || !token) {
+    addLog('Vui lòng nhập đầy đủ Owner, Repo và Token!', 'err');
+    return;
+  }
+  const dateOverride = document.getElementById('dateOverride').value;
+  const btn = document.querySelector('.btn-primary');
+  const spinner = document.getElementById('runSpinner');
+  const btnText = document.getElementById('runBtnText');
+
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  btnText.textContent = 'Đang kích hoạt...';
+
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  progressWrap.style.display = 'block';
+  let prog = 0;
+  const progInterval = setInterval(() => {
+    prog = Math.min(prog + 2, 85);
+    progressBar.style.width = prog + '%';
+  }, 150);
+
+  addLog(`Gửi lệnh chạy workflow${dateOverride ? ' cho ngày ' + dateOverride : ' (N-1 tự động)'}...`, 'info');
+
+  try {
+    const payload = { ref: 'main' };
+    if (dateOverride) payload.inputs = { date_override: dateOverride };
+
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/main.yml/dispatches`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    clearInterval(progInterval);
+    progressBar.style.width = '100%';
+    setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 800);
+
+    if (res.status === 204) {
+      addLog('✓ Workflow đã được kích hoạt thành công!', 'ok');
+      addLog('Kiểm tra GitHub Actions sau 30-60 giây...', 'info');
+      setStatus('running');
+      setTimeout(() => checkStatus(), 8000);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      addLog(`Lỗi ${res.status}: ${err.message || 'Không xác định'}`, 'err');
+      if (res.status === 401) addLog('Token không hợp lệ hoặc hết hạn. Kiểm tra lại PAT.', 'warn');
+      if (res.status === 404) addLog('Không tìm thấy repo hoặc workflow. Kiểm tra tên Owner/Repo.', 'warn');
+    }
+  } catch(e) {
+    clearInterval(progInterval);
+    progressWrap.style.display = 'none';
+    addLog(`Lỗi kết nối: ${e.message}`, 'err');
+  }
+
+  btn.disabled = false;
+  spinner.style.display = 'none';
+  btnText.textContent = '▶ Chạy ngay';
+}
+
+async function checkStatus() {
+  const { owner, repo, token } = getConfig();
+  if (!owner || !repo || !token) {
+    addLog('Chưa nhập cấu hình GitHub!', 'err');
+    return;
+  }
+  addLog('Đang lấy trạng thái lần chạy gần nhất...', 'info');
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=1`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+    const data = await res.json();
+    if (!data.workflow_runs || !data.workflow_runs.length) {
+      addLog('Chưa có lần chạy nào.', 'warn');
+      return;
+    }
+    const run = data.workflow_runs[0];
+    const conclusion = run.conclusion;
+    const status = run.status;
+    const startTime = new Date(run.created_at);
+    const endTime = run.updated_at ? new Date(run.updated_at) : null;
+
+    const statusLabel = document.getElementById('lastStatus');
+    if (status === 'completed') {
+      if (conclusion === 'success') {
+        statusLabel.textContent = '✓ Thành công';
+        statusLabel.className = 'badge badge-green';
+        addLog('✓ Lần chạy gần nhất: THÀNH CÔNG', 'ok');
+        setStatus('idle');
+      } else {
+        statusLabel.textContent = '✗ Thất bại';
+        statusLabel.className = 'badge badge-red';
+        addLog('✗ Lần chạy gần nhất: THẤT BẠI — Kiểm tra log trên GitHub Actions', 'err');
+        setStatus('error');
+      }
+    } else if (status === 'in_progress' || status === 'queued') {
+      statusLabel.textContent = '⟳ Đang chạy';
+      statusLabel.className = 'badge badge-blue';
+      addLog('Workflow đang chạy, kiểm tra lại sau 30s...', 'info');
+      setStatus('running');
+    }
+
+    document.getElementById('lastRunTime').textContent = startTime.toLocaleString('vi-VN');
+    if (endTime && status === 'completed') {
+      const dur = Math.round((endTime - startTime) / 1000);
+      document.getElementById('lastDuration').textContent = `${dur} giây`;
+    }
+
+    // Estimate sync date (N-1 from run date)
+    const syncDate = new Date(startTime);
+    syncDate.setDate(syncDate.getDate() - 1);
+    document.getElementById('lastSyncDate').textContent = syncDate.toLocaleDateString('vi-VN');
+
+  } catch(e) {
+    addLog(`Lỗi khi lấy trạng thái: ${e.message}`, 'err');
+  }
+}
+
+function setStatus(state) {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  if (state === 'running') {
+    dot.style.background = '#f39c12';
+    text.textContent = 'Đang chạy';
+  } else if (state === 'error') {
+    dot.style.background = '#e74c3c';
+    text.textContent = 'Lỗi';
+  } else {
+    dot.style.background = '#2ecc71';
+    text.textContent = 'Sẵn sàng';
+  }
+}
+
+function markCookieUpdated() {
+  const today = new Date().toLocaleDateString('vi-VN');
+  const todayISO = new Date().toISOString().slice(0,10);
+  document.getElementById('cookieDate').textContent = today;
+  const exp = new Date();
+  exp.setDate(exp.getDate() + 30);
+  document.getElementById('cookieExpiry').textContent = exp.toLocaleDateString('vi-VN');
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const cfg = raw ? JSON.parse(raw) : {};
+    cfg.cookieDate = todayISO;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+  } catch(e) {}
+
+  addLog(`✓ Đã ghi nhận Cookie cập nhật hôm nay (${today}). Hết hạn dự kiến: ${exp.toLocaleDateString('vi-VN')}`, 'ok');
+  checkCookieExpiry(exp);
+}
+
+function checkCookieExpiry(expDate) {
+  const daysLeft = Math.round((expDate - new Date()) / (1000*60*60*24));
+  if (daysLeft <= 5) {
+    addLog(`⚠ Cookie SPX còn ${daysLeft} ngày hết hạn! Hãy cập nhật lại.`, 'warn');
+  }
+}
+
+// Default date to yesterday
+function initDatePicker() {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  document.getElementById('dateOverride').value = yesterday.toISOString().slice(0, 10);
+}
+
+loadConfig();
+initDatePicker();
+addLog('Sẵn sàng. Nhập cấu hình GitHub và bấm "Chạy ngay" hoặc chờ lịch tự động 8:00 sáng.', 'ok');
+</script>
+</body>
+</html>
