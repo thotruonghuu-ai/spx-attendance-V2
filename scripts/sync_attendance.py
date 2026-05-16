@@ -21,8 +21,9 @@ from googleapiclient.errors import HttpError
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 ICT = timezone(timedelta(hours=7))
 
-SPX_API_URL = "https://spx.shopee.vn/api/v1/employee/attendance/statistic_data_list"
-PAGE_SIZE    = 100
+# API đúng từ Network capture (GET, wfm/admin path)
+SPX_API_URL = "https://spx.shopee.vn/api/wfm/admin/attendance/clock/statistic_data_list"
+PAGE_SIZE    = 24  # Theo đúng count=24 quan sát được
 
 # ============================================================
 # BƯỚC 1: LẤY DATA TỪ SPX API
@@ -31,14 +32,16 @@ def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
     """Lấy toàn bộ bản ghi chấm công cho target_date (YYYY-MM-DD)."""
     headers = {
         "cookie": cookie,
-        "content-type": "application/json",
+        "accept": "application/json, text/plain, */*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "en-US,en;q=0.9,vi;q=0.8",
+        "app": "FMS Portal",
         "user-agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/124.0.0.0 Safari/537.36"
         ),
         "referer": "https://spx.shopee.vn/",
-        "origin": "https://spx.shopee.vn",
     }
 
     date_obj  = datetime.strptime(target_date, "%Y-%m-%d")
@@ -51,16 +54,24 @@ def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
     page = 1
 
     while True:
-        payload = {
-            "start_time":  ts_start,
-            "end_time":    ts_end,
-            "page_number": page,
-            "page_size":   PAGE_SIZE,
+        params = {
+            "pageno":     page,
+            "count":      PAGE_SIZE,
+            "staff_type": 2,
+            "start_time": ts_start,
+            "end_time":   ts_end,
         }
         print(f"  → Gọi API trang {page} ...")
-        resp = requests.post(SPX_API_URL, json=payload, headers=headers, timeout=30)
-        resp.raise_for_status()
+        resp = requests.get(SPX_API_URL, params=params, headers=headers, timeout=30)
+
+        # Debug: in ra status và response nếu lỗi
+        print(f"     HTTP {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"     Response: {resp.text[:500]}")
+            resp.raise_for_status()
+
         body = resp.json()
+        print(f"     Response keys: {list(body.keys())}")
 
         # Kiểm tra session hết hạn
         if body.get("code") in (401, 403) or "login" in str(body).lower():
@@ -68,20 +79,35 @@ def fetch_spx_data(cookie: str, target_date: str) -> list[dict]:
                 "Session SPX hết hạn! Lấy lại cookie và cập nhật GitHub Secret SPX_COOKIE."
             )
 
-        data  = body.get("data", {}) or {}
-        items = data.get("list", []) or []
-        total = data.get("total", 0)
+        # Thử nhiều cấu trúc response khác nhau
+        data = body.get("data") or body.get("result") or body.get("response") or {}
+        if isinstance(data, list):
+            items = data
+            total = len(data)
+        else:
+            items = (data.get("list") or data.get("items") or
+                     data.get("records") or data.get("data") or [])
+            total = (data.get("total") or data.get("total_count") or
+                     data.get("count") or body.get("total") or 0)
+
+        # Nếu vẫn rỗng, thử lấy thẳng từ body
+        if not items and isinstance(body.get("list"), list):
+            items = body["list"]
+            total = body.get("total", len(items))
 
         all_records.extend(items)
         fetched = len(all_records)
         print(f"     Trang {page}: {len(items)} bản ghi | Tổng đã lấy: {fetched}/{total}")
 
-        if fetched >= total or not items:
+        if not items or (total > 0 and fetched >= total):
             break
         page += 1
         time.sleep(0.3)
 
     print(f"  ✅ Lấy được {len(all_records)} bản ghi từ SPX")
+    # Debug: in field names của bản ghi đầu tiên để kiểm tra
+    if all_records:
+        print(f"  🔍 Fields của bản ghi đầu: {list(all_records[0].keys())}")
     return all_records
 
 # ============================================================
